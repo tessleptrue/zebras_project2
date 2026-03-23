@@ -171,17 +171,177 @@ end
 (* Module for environments.
  *)
 module Env = struct
+
+  (* Define type var(s), funk(s) so environment contains functions and variables seperately *)
+  type var = (Ast.Id.t * Value.t) 
+  type vars = var list
+  (* Function name, arguments, expression *)
+
+  (*  empty = ρ, where dom ρ = ∅.
+   *)
+  type t = vars
+  let empty : t = []
+  [@@deriving show]
+
+  (*  empty = ρ, where dom ρ = ∅. lookup ρ x = ρ(x). *)
+  
+  let lookup (rho : t) (x : Ast.Id.t) : Value.t option =
+    List.assoc_opt x rho
+
+  (*  update ρ x v = ρ{x → v}.
+   *)
+  let update (rho : t) (x : Ast.Id.t) (v : Value.t) : t =
+    (x, v) :: List.remove_assoc x rho
+
+  let def_var (rho : t)(x: Ast.Id.t) (v : Value.t) : t =
+    (x, v) :: rho
+
 end
+
+module Env_block = struct 
+  type t = Env.t list
+
+  let eb_add_empty (block : t) : t =
+    Env.empty :: block
+
+  let rec eb_lookup (block : t) (x: Ast.Id.t) : Value.t option = 
+    match block with
+      |[] -> None
+      |y::ys -> match Env.lookup y x with
+        |None ->  eb_lookup ys x
+        |Some v -> Some v
+
+
+  let rec eb_update (block : t)(x : Ast.Id.t)(v : Value.t) : t =
+    match block with
+    |[] -> []
+    |y::ys -> match Env.lookup y x with 
+      |None -> y :: eb_update ys x v
+      |Some _ -> (Env.update y x v) :: ys
+
+  let eb_pop (block : t) : t = 
+    match block with
+    |[] -> [] (*raise fail?*)
+    |y::ys -> ys
+
+  let def_var (block : t)(x: Ast.Id.t) (v : Value.t) : t =
+    match block with 
+    |[] -> failwith "fixerror"
+    |y::ys -> (Env.def_var y x v) :: ys
+
+end
+
+module Frame = struct
+  type t = 
+  |E_frame of Env_block.t
+  |V_frame of Value.t
+
+  
+
+
+
+  (* Cases based on what the frame is, potentially where we implement STM stuff*)
+end
+
+let unop (op : Ast.Expr.unop) (v : Value.t) : Value.t =
+  match (op, v) with
+  |(Ast.Expr.Not, Value.V_Bool n) -> Value.V_Bool (not n)
+  |(Ast.Expr.Neg, Value.V_Int n) -> Value.V_Int (-n)
+  |_  -> raise (TypeError "Invalid operand for unary operator")
+
+let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
+  match (op, v, v') with
+  | (Ast.Expr.Plus, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n + n')
+  | (Ast.Expr.Minus, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n - n')
+  | (Ast.Expr.Times, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n * n')
+  | (Ast.Expr.Div, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n / n')
+  | (Ast.Expr.Mod, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n mod n')
+  | (Ast.Expr.And, Value.V_Bool n, Value.V_Bool n') -> Value.V_Bool (n && n')
+  | (Ast.Expr.Or, Value.V_Bool n, Value.V_Bool n') -> Value.V_Bool (n || n')
+  | (Ast.Expr.Eq, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n = n')
+  | (Ast.Expr.Eq, Value.V_Bool b, Value.V_Bool b') -> Value.V_Bool (b = b')
+  | (Ast.Expr.Ne, Value.V_Bool b, Value.V_Bool b') -> Value.V_Bool (b != b')
+  | (Ast.Expr.Ne, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n != n')
+  | (Ast.Expr.Lt, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n < n')
+  | (Ast.Expr.Gt, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n > n')
+  | (Ast.Expr.Le, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n <= n')
+  | (Ast.Expr.Ge, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n >= n')
+  |_ -> raise (TypeError "Unsupported expression")
+
+
+let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list = 
+    match funks with
+          |[] -> []
+          |(name, params, body)::xs -> (name, (params, body)) :: def_funks xs 
+
 
 (* exec p:  Execute the program `p`.
  *)
-let exec (_ : Ast.Prog.t) : unit =
+let exec (p : Ast.Prog.t) : unit =
+  match p with
+  |Pgm fundefs -> 
+    let f_list = def_funks fundefs in
 
+  let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
+    (match fr with
+    |V_frame v -> failwith "unimplemented"
+    |E_frame envs -> 
+      (match e with
+      |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
+                            | Some v -> v
+                            | None -> raise (UnboundVariable x) )
+      | Ast.Expr.Num n -> Value.V_Int n
+      | Ast.Expr.Bool b -> Value.V_Bool b
+      | Ast.Expr.Unop (op, e) ->
+        let v = eval fr e in 
+        unop op v 
+      | Ast.Expr.Binop (op, e, e') ->
+        let v = eval fr e in
+        let v' = eval fr e' in
+        binop op v v'
+      | Ast.Expr.Call (f, args) -> 
+        let (params, body) = (match List.assoc_opt f f_list with 
+                                |Some v -> v
+                                |None -> failwith "fix error")
+        in
+          let rec val_list (args: Ast.Expr.t list) : Value.t list = 
+            (*Evaluate each argument expresssion*)
+            (match args with 
+              |[] -> []
+              |b::bs -> (eval fr b) :: (val_list bs))
+            in
+            (*Bind each evaluated argument expression to function parameters and evaluate the function *)
+            eval (arg_match envs xs (val_list args)) e 
+      |_ -> failwith "unimplemented" ))
+    and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
+      (match fr with 
+      |V_frame v -> raise (TypeError "fr")
+      |E_frame envs -> (match stm with
+        | VarDec (xs) -> (match xs with 
+                        |[] -> fr
+                        |(name, e_opt)::ys -> (match e_opt with 
+                                              |None -> Env_block.def_var name Value.V_Undefined
+                                              |Some e -> Env_block.def_var name (eval fr e) ))
+        | Fscanf (_, st, _) -> do_fscanf(st) 
+        | Assign (x, e) -> Env_block.eb_update fr x (eval fr e)
+        | Expr e -> Frame.V_frame (eval fr e)
+        | Block stms -> (match (eval_stms (Env_block.eb_add_empty fr) stms) with
+                        |Frame.V_frame v -> v 
+                        |Frame.E_frame es -> Env_block.eb_pop es)
+        | IfElse (e, stm1, stm2) -> (match (eval fr e) with 
+                                    |Value.V_Bool x -> (match x with 
+                                              |false -> eval_stm fr stm2 
+                                              | true -> eval_stm fr stm1 )
+                                    |_-> failwith "fixerror" )
+                                    (* need to change to accomate if statement has no else *)
+        | While (e, stm) -> (match (eval fr e) with 
+                                    |Value.V_Bool x -> (match x with |false -> fr | true -> eval_stm fr stm )
+                                    |_-> failwith "fixerror" )
+        | Return (e_opt) -> (match e_opt with
+                              |None -> Value.V_None
+                              |Some v -> v)
 
-  let eval (e : Ast.Expr.t) : Value.t =
-    failwith (
-      Printf.sprintf "Unimplemented: eval: %s" (Ast.Expr.show e)
-    )
+      ))
   in
 
   let _ = eval (Call("main", [])) in
