@@ -311,7 +311,7 @@ let exec (p : Ast.Prog.t) : unit =
               |b::bs -> (eval fr b) :: (val_list bs))
             in
             (*Bind each evaluated argument expression to function parameters and evaluate the function *)
-            eval (arg_match envs xs (val_list args)) e 
+            eval (arg_match envs xs (val_list args)) e  (* will be eval_stms*)
       |_ -> failwith "unimplemented" ))
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
@@ -320,14 +320,14 @@ let exec (p : Ast.Prog.t) : unit =
         | VarDec (xs) -> (match xs with 
                         |[] -> fr
                         |(name, e_opt)::ys -> (match e_opt with 
-                                              |None -> Env_block.def_var name Value.V_Undefined
-                                              |Some e -> Env_block.def_var name (eval fr e) ))
-        | Fscanf (_, st, _) -> do_fscanf(st) 
-        | Assign (x, e) -> Env_block.eb_update fr x (eval fr e)
+                                              |None -> Frame.E_frame(Env_block.def_var envs name Value.V_Undefined)
+                                              |Some e -> Frame.E_frame(Env_block.def_var envs name (eval fr e) )))
+        | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
+        | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
         | Expr e -> Frame.V_frame (eval fr e)
-        | Block stms -> (match (eval_stms (Env_block.eb_add_empty fr) stms) with
-                        |Frame.V_frame v -> v 
-                        |Frame.E_frame es -> Env_block.eb_pop es)
+        | Block stms -> (match (eval_stms (Env_block.eb_add_empty envs) stms) with
+                        |Frame.V_frame v -> Frame.V_frame(v) 
+                        |Frame.E_frame es -> Frame.E_frame(Env_block.eb_pop es))
         | IfElse (e, stm1, stm2) -> (match (eval fr e) with 
                                     |Value.V_Bool x -> (match x with 
                                               |false -> eval_stm fr stm2 
@@ -338,10 +338,15 @@ let exec (p : Ast.Prog.t) : unit =
                                     |Value.V_Bool x -> (match x with |false -> fr | true -> eval_stm fr stm )
                                     |_-> failwith "fixerror" )
         | Return (e_opt) -> (match e_opt with
-                              |None -> Value.V_None
-                              |Some v -> v)
+                              |None -> Frame.V_frame(Value.V_None)
+                              |Some e -> (match eval fr e with
+                                        |Value.V_Undefined -> failwith "fix error"
+                                        |Value.V_None -> failwith "fix error"
+                                        |Value.V_Int i -> Frame.V_frame(Value.V_Int i)
+                                        |Value.V_Bool i -> Frame.V_frame(Value.V_Bool i)
+                                        |Value.V_Str i -> Frame.V_frame(Value.V_Str i) ))
 
-      ))
+      )) and eval_stms ()
   in
 
   let _ = eval (Call("main", [])) in
