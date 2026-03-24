@@ -277,6 +277,17 @@ let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * 
 
 (* exec p:  Execute the program `p`.
  *)
+
+let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) : Frame.t = 
+    match fr with
+      | Frame.V_frame v -> Frame.V_frame v (* is this the right behavior? *)
+      | Frame.E_frame envs ->
+        (match (params, vals) with
+          | ([], []) -> fr
+          | ([], _) -> raise (TypeError "too many args")
+          | (_, []) -> raise (TypeError "too few args")
+          | (y::ys, b::bs) -> (arg_match (Frame.E_frame(Env_block.eb_update envs y b)) ys bs ))
+
 let exec (p : Ast.Prog.t) : unit =
   match p with
   |Pgm fundefs -> 
@@ -311,12 +322,14 @@ let exec (p : Ast.Prog.t) : unit =
               |b::bs -> (eval fr b) :: (val_list bs))
             in
             (*Bind each evaluated argument expression to function parameters and evaluate the function *)
-            eval (arg_match envs xs (val_list args)) e  (* will be eval_stms*)
+            (match eval_stms (arg_match fr params (val_list args)) body with
+              |Frame.V_frame v-> v
+              |Frame.E_frame _ -> failwith "fix error")
       |_ -> failwith "unimplemented" ))
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
-      |V_frame v -> raise (TypeError "fr")
-      |E_frame envs -> (match stm with
+      |Frame.V_frame _ -> raise (TypeError "fr")
+      |Frame.E_frame envs -> (match stm with
         | VarDec (xs) -> (match xs with 
                         |[] -> fr
                         |(name, e_opt)::ys -> (match e_opt with 
@@ -325,13 +338,13 @@ let exec (p : Ast.Prog.t) : unit =
         | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
         | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
         | Expr e -> Frame.V_frame (eval fr e)
-        | Block stms -> (match (eval_stms (Env_block.eb_add_empty envs) stms) with
+        | Block stms -> (match (eval_stms (Frame.E_frame(Env_block.eb_add_empty envs)) stms) with
                         |Frame.V_frame v -> Frame.V_frame(v) 
                         |Frame.E_frame es -> Frame.E_frame(Env_block.eb_pop es))
         | IfElse (e, stm1, stm2) -> (match (eval fr e) with 
                                     |Value.V_Bool x -> (match x with 
                                               |false -> eval_stm fr stm2 
-                                              | true -> eval_stm fr stm1 )
+                                              |true -> eval_stm fr stm1 )
                                     |_-> failwith "fixerror" )
                                     (* need to change to accomate if statement has no else *)
         | While (e, stm) -> (match (eval fr e) with 
@@ -339,17 +352,19 @@ let exec (p : Ast.Prog.t) : unit =
                                     |_-> failwith "fixerror" )
         | Return (e_opt) -> (match e_opt with
                               |None -> Frame.V_frame(Value.V_None)
-                              |Some e -> (match eval fr e with
-                                        |Value.V_Undefined -> failwith "fix error"
-                                        |Value.V_None -> failwith "fix error"
-                                        |Value.V_Int i -> Frame.V_frame(Value.V_Int i)
-                                        |Value.V_Bool i -> Frame.V_frame(Value.V_Bool i)
-                                        |Value.V_Str i -> Frame.V_frame(Value.V_Str i) ))
+                              |Some e -> Frame.V_frame(eval fr e)
 
-      )) and eval_stms ()
+      ))) 
+      and 
+      eval_stms (fr: Frame.t) (stms : Ast.Stm.t list) : Frame.t =
+        (match stms with
+        |[] -> fr
+        |y::ys -> (match eval_stm fr y with
+                  |Frame.V_frame(v) -> Frame.V_frame(v)
+                  |Frame.E_frame(envs) -> eval_stms (Frame.E_frame(envs)) ys))
   in
 
-  let _ = eval (Call("main", [])) in
+  let _ = eval (  Call("main", [])) in
   ()
 
 
