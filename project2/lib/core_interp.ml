@@ -236,6 +236,8 @@ module Frame = struct
   |E_frame of Env_block.t
   |V_frame of Value.t
 
+  let fr_empty = E_frame([])
+
   
 
 
@@ -364,7 +366,7 @@ let exec (p : Ast.Prog.t) : unit =
                   |Frame.E_frame(envs) -> eval_stms (Frame.E_frame(envs)) ys))
   in
 
-  let _ = eval (  Call("main", [])) in
+  let _ = eval Frame.fr_empty (Call("main", [])) in
   ()
 
 
