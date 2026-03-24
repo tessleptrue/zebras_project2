@@ -222,7 +222,7 @@ module Env_block = struct
   let eb_pop (block : t) : t = 
     match block with
     |[] -> [] (*raise fail?*)
-    |y::ys -> ys
+    |_::ys -> ys
 
   let def_var (block : t)(x: Ast.Id.t) (v : Value.t) : t =
     match block with 
@@ -297,7 +297,7 @@ let exec (p : Ast.Prog.t) : unit =
 
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
     (match fr with
-    |V_frame v -> failwith "unimplemented"
+    |V_frame _ -> failwith "unimplemented"
     |E_frame envs -> 
       (match e with
       |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
@@ -334,7 +334,7 @@ let exec (p : Ast.Prog.t) : unit =
       |Frame.E_frame envs -> (match stm with
         | VarDec (xs) -> (match xs with 
                         |[] -> fr
-                        |(name, e_opt)::ys -> (match e_opt with 
+                        |(name, e_opt)::_ -> (match e_opt with 
                                               |None -> Frame.E_frame(Env_block.def_var envs name Value.V_Undefined)
                                               |Some e -> Frame.E_frame(Env_block.def_var envs name (eval fr e) )))
         | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
