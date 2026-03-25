@@ -196,7 +196,7 @@ module Env = struct
   let def_var (rho : t)(x: Ast.Id.t) (v : Value.t) : t =
     match lookup rho x with
       |None -> (x, v) :: rho
-      |Some _ -> raise (MultipleDeclaration "Var already declared")
+      |Some _ -> raise (MultipleDeclaration x)
     
 
 end
@@ -217,7 +217,7 @@ module Env_block = struct
 
   let rec eb_update (block : t)(x : Ast.Id.t)(v : Value.t) : t =
     match block with
-    |[] -> []
+    |[] -> raise (UnboundVariable x)
     |y::ys -> match Env.lookup y x with 
       |None -> y :: eb_update ys x v
       |Some _ -> (Env.update y x v) :: ys
@@ -341,7 +341,7 @@ let exec (p : Ast.Prog.t) : unit =
             in
               (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
                 | Frame.V_frame v -> v
-                | Frame.E_frame _ -> raise (NoReturn f)))
+                | Frame.E_frame _ -> raise (NoReturn f))) (* IDK WHAT IS RIGHT *)
       (* | Ast.Expr.Call (f, args) -> 
         (let (params, body) = (match List.assoc_opt f f_list with 
                                 |Some v -> v

@@ -16,5 +16,4 @@ bool f() {
 
 void main() {
     f() ;
-    return ;
 }
