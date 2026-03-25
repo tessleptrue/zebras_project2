@@ -11,4 +11,5 @@
 
 void main() {
     fprintf(stdout, "%d", true) ;
+    return ;
 }

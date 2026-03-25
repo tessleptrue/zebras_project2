@@ -386,12 +386,12 @@ let exec (p : Ast.Prog.t) : unit =
                                               |true -> eval_stm fr stm1 )
                                     |_-> raise (TypeError "not bool") )
         | While (e, stm) -> (match (eval fr e) with 
-                                    |Value.V_Bool x -> (match x with 
-                                                          |false -> fr 
-                                                          |true -> 
-                                                            let fr' = eval_stm fr stm in
-                                                            eval_stm fr' (While (e, stm)) )
-                                    |_-> raise (TypeError "not bool") )
+                                | Value.V_Bool true -> 
+                                    (match eval_stm fr stm with
+                                    | Frame.V_frame v -> Frame.V_frame v
+                                    | Frame.E_frame envs' -> eval_stm (Frame.E_frame envs') (While (e, stm)))
+                                | Value.V_Bool false -> fr
+                                | _ -> raise (TypeError "not bool"))
         | Return (e_opt) -> (match e_opt with
                               |None -> Frame.V_frame(Value.V_None)
                               |Some e -> Frame.V_frame(eval fr e)

@@ -10,4 +10,5 @@
 
 void main() {
     fscanf(stdin, "%d\n", &x) ;
+    return ;
 }

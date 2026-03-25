@@ -10,4 +10,5 @@
 
 void main() {
     fprintf(stdout, "%d", 5, 6) ;
+    return ;
 }

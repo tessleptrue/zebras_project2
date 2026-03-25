@@ -10,4 +10,5 @@
 
 void main() {
     fprintf(stdout, "%") ;
+    return ;
 }

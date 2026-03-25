@@ -10,6 +10,7 @@
 
 void main() {
     f();
+    return ;
 }
 
 void f() {
