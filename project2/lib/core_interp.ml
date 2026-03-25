@@ -305,9 +305,16 @@ let exec (p : Ast.Prog.t) : unit =
     |Frame.V_frame _ -> failwith "unimplemented"
     |Frame.E_frame envs -> 
       (match e with
-      |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
+      |Ast.Expr.Var x -> 
+            (match x with
+            | "stdout" | "stdin" -> Value.V_None  
+            | _ ->
+                match (Env_block.eb_lookup envs x) with 
+                | Some v -> v
+                | None -> raise (UnboundVariable x))
+      (* |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
                             | Some v -> v
-                            | None -> raise (UnboundVariable x) )
+                            | None -> raise (UnboundVariable x) ) *)
       | Ast.Expr.Num n -> Value.V_Int n
       | Ast.Expr.Bool b -> Value.V_Bool b
       | Ast.Expr.Unop (op, e) ->
@@ -318,6 +325,24 @@ let exec (p : Ast.Prog.t) : unit =
         let v' = eval fr e' in
         binop op v v'
       | Ast.Expr.Call (f, args) -> 
+        let evaled_args = List.map (eval fr) args in
+          (match f with
+          | "fprintf" ->
+                (match evaled_args with
+                    | _ :: Value.V_Str fmt :: rest -> 
+                        let () = Io.do_fprintf fmt rest in
+                        Value.V_None
+                    | _ -> raise (TypeError "fprintf: bad arguments"))
+          | _ ->
+            let (params, body) = 
+              match List.assoc_opt f f_list with 
+              | Some v -> v
+              | None -> raise (UndefinedFunction f)
+            in
+              (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
+                | Frame.V_frame v -> v
+                | Frame.E_frame _ -> raise (NoReturn f)))
+      (* | Ast.Expr.Call (f, args) -> 
         (let (params, body) = (match List.assoc_opt f f_list with 
                                 |Some v -> v
                                 |None -> raise (UndefinedFunction f))
@@ -331,7 +356,7 @@ let exec (p : Ast.Prog.t) : unit =
             (*Bind each evaluated argument expression to function parameters and evaluate the function *)
             (match eval_stms (arg_match Frame.fr_empty params (val_list args)) body with
               |Frame.V_frame v-> v
-              |Frame.E_frame _ -> raise (NoReturn f)) )
+              |Frame.E_frame _ -> raise (NoReturn f)) ) *)
       |Ast.Expr.Str s -> Value.V_Str s))
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
