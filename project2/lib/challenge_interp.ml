@@ -47,6 +47,7 @@ module Value = struct
     | V_Int of int
     | V_Bool of bool
     | V_Str of string
+    | V_Loc of int
     [@@deriving show]
 
   (* to_string v = a string representation of v (more human-readable than
@@ -59,6 +60,7 @@ module Value = struct
     | V_Int n -> Int.to_string n
     | V_Bool b -> Bool.to_string b
     | V_Str s -> s
+    | V_Loc l -> Int.to_string l 
 end
 
 (* Module for input/output built-in functions.
@@ -172,6 +174,40 @@ end
  *)
 module Env = struct
 end
+
+module Store = struct 
+
+  type t = Value.t Array.t * int ref
+
+  
+  let store_make (size : int) : t =
+    (Array.make size Value.V_Undefined, ref 0)
+
+  let store_lookup (store : t) (location : int) : Value.t =
+    let (arr, _) = store in
+    if location < 0 || location >= Array.length arr then
+      raise (SegmentationError location)
+    else
+      Array.get arr location
+
+  let store_update (store : t) (location : int) (v : Value.t) : unit =
+    let (arr, _) = store in
+    if location < 0 || location >= Array.length arr then
+      raise (SegmentationError location)
+    else
+      Array.set arr location v
+
+  let store_new_loc(store : t) : int =
+    let (arr, next) = store in
+    let loc = !next in
+    if loc >= Array.length arr then
+      raise OutOfMemoryError
+    else
+      let _ = Array.set arr loc Value.V_Undefined in
+      let _ = next := loc + 1 in
+      loc
+
+end 
 
 (* exec p:  Execute the program `p`.
  *)
