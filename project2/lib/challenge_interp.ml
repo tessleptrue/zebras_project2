@@ -411,8 +411,7 @@ let exec (_ : Ast.Prog.t) : unit =
                   | Some Value.V_Loc loc_base -> 
                     (match eval fr e with 
                     | Value.V_Int i -> 
-                      Store.store_update store_main (loc_base + i) (eval fr e') 
-                      in 
+                     let _ =  Store.store_update store_main (loc_base + i) (eval fr e') in 
                       Frame.E_Frame envs 
                     | _ -> raise (TypeError "non-int entry"))           
                   | _ -> raise (TypeError "not an array"))     
