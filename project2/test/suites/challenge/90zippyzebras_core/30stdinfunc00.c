@@ -16,4 +16,5 @@ int f() {
 
 void main() {
     fprintf(stdout, "%d\n", f()) ;
+    return ;
 }

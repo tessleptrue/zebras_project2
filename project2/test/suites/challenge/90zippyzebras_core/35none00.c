@@ -10,9 +10,10 @@
 
 void f() {
     fprintf(stdout, "None");
-    return ;
+    return;
 }
 
 void main() {
     f();
+    return ;
 }
