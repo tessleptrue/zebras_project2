@@ -13,4 +13,5 @@ int g(int y) { return f(y) + 1 ; }
 
 void main() {
     fprintf(stdout, "%d\n", g(1)) ;
+    return ;
 }

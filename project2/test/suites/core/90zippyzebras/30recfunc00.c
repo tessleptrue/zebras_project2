@@ -17,4 +17,5 @@ void main() {
     int n ;
     fscanf(stdin, "%d", &n) ;
     fprintf(stdout, "%d\n", f(n)) ;
+    return ;
 }

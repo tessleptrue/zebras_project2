@@ -264,6 +264,7 @@ module Store = struct
     | true -> raise (SegmentationError location)
     | false -> let (arr, _) = store in Array.set arr location v
 
+
   let store_new_loc(store : t) : int =
   let (arr, next) = store in
     let loc = !next in
@@ -327,6 +328,7 @@ let rec alloc_space (store: Store.t) (n : int) : unit =
 let exec (p : Ast.Prog.t) : unit =
   match p with
   | Pgm fundefs -> 
+    let store_main = Store.store_make 100 in 
     let f_list = def_funks fundefs in
     let store_main = Store.store_make 100 in
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
@@ -364,6 +366,14 @@ let exec (p : Ast.Prog.t) : unit =
         let v = eval fr e in
         let v' = eval fr e' in
         binop op v v'
+      |Ast.Expr.Index (xs, e) -> 
+          (match Env_block.eb_lookup envs xs with
+          | Some (Value.V_Loc loc_base) -> 
+          (match eval fr e with
+            |Value.V_Int i -> Store.store_lookup store_main (loc_base + 1 + i)
+            |_-> raise (TypeError "idk what to call type error"))
+          | None -> failwith "this is when there's no loc found"
+          | _ -> failwith "this is when there is a value found that isn't a loc... bad" )
       | Ast.Expr.Call (f, args) -> 
               let evaled_args = List.map (eval fr) args in
                 (match f with
@@ -425,6 +435,15 @@ let exec (p : Ast.Prog.t) : unit =
                 in arr_dec_list fr xs
               | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
               | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
+              | IndexAssign (xs, e, e') ->
+                (match Env_block.eb_lookup envs xs with
+                  | Some Value.V_Loc loc_base -> 
+                    (match eval fr e with 
+                    | Value.V_Int i -> 
+                     let _ =  Store.store_update store_main (loc_base + i) (eval fr e') in 
+                      Frame.E_frame envs 
+                    | _ -> raise (TypeError "non-int entry"))           
+                  | _ -> raise (TypeError "not an array"))     
               | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
               | Block stms -> (match (eval_stms (Frame.E_frame(Env_block.eb_add_empty envs)) stms) with
                               |Frame.V_frame v -> Frame.V_frame(v) 
@@ -443,9 +462,8 @@ let exec (p : Ast.Prog.t) : unit =
                                       | _ -> raise (TypeError "not bool"))
               | Return (e_opt) -> (match e_opt with
                                     |None -> Frame.V_frame(Value.V_None)
-                                    |Some e -> Frame.V_frame(eval fr e)        
-      )
-      | _ -> failwith "gabby did it"))
+                                    |Some e -> Frame.V_frame(eval fr e))
+              | _-> failwith "unimplemented")) 
           and 
           eval_stms (fr: Frame.t) (stms : Ast.Stm.t list) : Frame.t =
             (match stms with
