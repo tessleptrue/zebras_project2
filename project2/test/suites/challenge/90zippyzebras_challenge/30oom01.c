@@ -2,7 +2,7 @@
  *
  * {
  *   "input": [],
- *   "exception": "OutOfMemoryError"
+ *   "output":   []
  * }
  *
  */

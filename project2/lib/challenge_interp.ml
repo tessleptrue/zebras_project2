@@ -228,7 +228,7 @@ module Env_block = struct
 
   let eb_pop (block : t) : t = 
     match block with
-    |[] -> [] (*raise fail?*)
+    |[] -> failwith "no more environments to pop"
     |_::ys -> ys
 
   let def_var (block : t)(x: Ast.Id.t) (v : Value.t) : t =
@@ -333,7 +333,7 @@ let exec (p : Ast.Prog.t) : unit =
     let store_main = Store.store_make 100 in
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
     (match fr with
-    |Frame.V_frame _ -> failwith "unimplemented"
+    |Frame.V_frame v -> v
     |Frame.E_frame envs -> 
       (match e with
       | Ast.Expr.Var x ->
@@ -365,7 +365,7 @@ let exec (p : Ast.Prog.t) : unit =
                       |false -> raise (SegmentationError i)
                       |true -> Store.store_lookup store_main (loc_base + 1 + i))
             |_-> raise (TypeError "idk what to call type error"))
-          | None -> raise (SegmentationError 0)
+          | None -> raise (UnboundVariable xs)
           | _ -> raise (TypeError "variable does not have a location") )
       | Ast.Expr.Call (f, args) -> 
               let evaled_args = List.map (eval fr) args in
@@ -388,7 +388,7 @@ let exec (p : Ast.Prog.t) : unit =
       |Ast.Expr.Str s -> Value.V_Str s))
           and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
             (match fr with 
-            |Frame.V_frame _ -> raise (TypeError "fr")
+            |Frame.V_frame _ -> failwith "Should not evaluate V_Frame"
             |Frame.E_frame envs -> (match stm with
               | VarDec (xs) -> 
                 let rec dec_list (fr' : Frame.t) (xs : (Ast.Id.t * Ast.Expr.t option) list) : Frame.t = 
@@ -410,7 +410,7 @@ let exec (p : Ast.Prog.t) : unit =
             | (Frame.E_frame envs', (name, size)::ys) ->
                   (match eval fr' size with 
                   |Value.V_Int n -> 
-                    (match n > 0 with
+                    (match n >= 0 with
                       |false -> raise OutOfMemoryError
                       |true -> let base_loc = Store.store_new_loc store_main in
                         Store.store_update store_main base_loc (Value.V_Int n);

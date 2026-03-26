@@ -358,7 +358,7 @@ let exec (p : Ast.Prog.t) : unit =
     (*Evaluates a statement and outputs frame with evaluated statement *)
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
-      |Frame.V_frame _ -> raise (TypeError "fr")
+      |Frame.V_frame _ -> failwith "Should not evaluate V_Frame"
       |Frame.E_frame envs -> (match stm with
       (* Declare a list of vars by recursively 
       using def_var on the environment block and evaluating e if necessary*)
@@ -373,7 +373,6 @@ let exec (p : Ast.Prog.t) : unit =
                     | Some e -> dec_list (Frame.E_frame(Env_block.def_var envs' name (eval fr' e))) ys)
           in
             dec_list fr xs
-
         | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
         | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
         | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
