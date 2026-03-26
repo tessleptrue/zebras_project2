@@ -9,8 +9,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+int f(int x) {
+    return x ;
+}
+
 void main() {
-    int x ;
-    fscanf(stdin, "%c", &x) ;
-    return ;
+    bool b ;
+    fscanf(stdin, "%b", &b) ;
+    f(b) ;
 }

@@ -2,13 +2,16 @@
  *
  * {
  *   "input": [],
- *   "exception": "TypeError"
+ *   "output": ["None"]
  * }
  *
  */
 #include <stdio.h>
 
+void f() {
+    fprintf(stdout, "None");
+}
+
 void main() {
-    fprintf(stdout, "%") ;
-    return ;
+    f();
 }

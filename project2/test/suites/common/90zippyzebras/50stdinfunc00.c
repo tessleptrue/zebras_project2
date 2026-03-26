@@ -17,4 +17,5 @@ void main() {
     bool b ;
     fscanf(stdin, "%b", &b) ;
     f(b) ;
+    return ;
 }

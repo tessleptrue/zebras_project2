@@ -9,7 +9,5 @@
 #include <stdio.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
-    return ;
+    fprintf(stdout, "%d", 5, 6) ;
 }

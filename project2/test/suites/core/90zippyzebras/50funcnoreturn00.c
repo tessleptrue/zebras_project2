@@ -2,14 +2,19 @@
  *
  * {
  *   "input": [],
- *   "exception": "TypeError"
+ *   "exception": "NoReturn"
  * }
  *
  */
 #include <stdio.h>
 #include <stdbool.h>
 
+
+bool f() {
+    if (true) return true ;
+}
+
 void main() {
-    fprintf(stdout, "%d", true) ;
+    f() ;
     return ;
 }

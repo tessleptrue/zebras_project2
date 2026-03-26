@@ -2,14 +2,13 @@
  *
  * {
  *   "input": [],
- *   "exception": "TypeError"
+ *   "exception": "UndefinedFunction"
  * }
  *
  */
 #include <stdio.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
+    int x = f() ;
     return ;
 }

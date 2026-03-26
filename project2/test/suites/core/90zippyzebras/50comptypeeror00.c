@@ -7,9 +7,9 @@
  *
  */
 #include <stdio.h>
+#include <stdbool.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
+    bool b = 5 < true ;
     return ;
 }

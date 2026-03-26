@@ -2,14 +2,13 @@
  *
  * {
  *   "input": [],
- *   "exception": "TypeError"
+ *   "exception": "UnboundVariable"
  * }
  *
  */
 #include <stdio.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
+    int y = x + 1 ;
     return ;
 }

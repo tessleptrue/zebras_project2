@@ -1,8 +1,8 @@
 /*!tests!
  *
  * {
- *   "input": [],
- *   "exception": "NoReturn"
+ *    "input":      [],
+ *    "output":     ["true"]
  * }
  *
  */
@@ -12,8 +12,12 @@
 
 bool f() {
     if (true) return true ;
+
+    return false ;
 }
 
 void main() {
-    f() ;
+    fprintf(stdout, "%b\n", f()) ;
+
+    return ;
 }

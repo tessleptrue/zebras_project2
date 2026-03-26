@@ -9,7 +9,9 @@
 #include <stdio.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
+    int x = 1 ;
+    while (x) {
+        return ;
+    }
     return ;
 }

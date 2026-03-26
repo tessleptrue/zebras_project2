@@ -1,7 +1,7 @@
 /*!tests!
  *
  * {
- *   "input": [],
+ *   "input": ["5"],
  *   "exception": "TypeError"
  * }
  *
@@ -10,6 +10,7 @@
 
 void main() {
     int x ;
-    fscanf(stdin, "%x", &x) ;
-    return ;
+    fscanf(stdin, "%d", &x) ;
+
+    if (x) return ;
 }

@@ -2,7 +2,7 @@
  *
  * {
  *   "input": [],
- *   "exception": "TypeError"
+ *   "exception": "UnboundVariable"
  * }
  *
  */
@@ -10,6 +10,6 @@
 
 void main() {
     int x ;
-    fscanf(stdin, "%x", &x) ;
+    fprintf(stdout, "%d\n", x) ;
     return ;
 }

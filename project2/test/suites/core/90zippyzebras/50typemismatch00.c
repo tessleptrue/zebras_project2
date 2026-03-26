@@ -7,9 +7,8 @@
  *
  */
 #include <stdio.h>
+#include <stdbool.h>
 
 void main() {
-    int x ;
-    fscanf(stdin, "%x", &x) ;
-    return ;
+    fprintf(stdout, "%d", true) ;
 }

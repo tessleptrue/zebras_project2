@@ -18,5 +18,4 @@ void main() {
     fscanf(stdin, "%d", &n) ;
 
     fprintf(stdout, "%d\n", f(n, 1)) ;
-    return ;
 }

@@ -1,15 +1,15 @@
 /*!tests!
  *
  * {
- *   "input": [],
+ *   "input": ["true"],
  *   "exception": "TypeError"
  * }
  *
  */
 #include <stdio.h>
+#include <stdbool.h>
 
 void main() {
     int x ;
-    fscanf(stdin, "%x", &x) ;
-    return ;
+    fscanf(stdin, "%c", &x) ;
 }
