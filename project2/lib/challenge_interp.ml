@@ -356,6 +356,11 @@ let exec (p : Ast.Prog.t) : unit =
         let v = eval fr e in
         let v' = eval fr e' in
         binop op v v'
+      (* looks up the base location of an array in the environment block,
+        then evaluates the index expression and looks up the value in the store
+        at the evaluated locationm
+      *)
+
       |Ast.Expr.Index (xs, e) -> 
           (match Env_block.eb_lookup envs xs with
           | Some (Value.V_Loc loc_base) -> 
@@ -406,6 +411,9 @@ let exec (p : Ast.Prog.t) : unit =
                           | Some e -> dec_list (Frame.E_frame(Env_block.def_var envs' name (eval fr' e))) ys))
                 in
                   dec_list fr xs
+               (* ArrayDec evaluates the index expression and allocates memory in the store
+             for the size of the evaluated expr and assigns it the locations with an undefined value.
+             then, the store is updated and xs is bound to the location l in the env *)
               | ArrayDec (xs) -> 
                 let rec arr_dec_list (fr' : Frame.t) (xs : (Ast.Id.t * Ast.Expr.t) list) : Frame.t = 
                   (match (fr', xs) with 
@@ -424,6 +432,11 @@ let exec (p : Ast.Prog.t) : unit =
                 in arr_dec_list fr xs
               | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
               | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
+              
+             (* IndexAssign looks up the base location in the environment block, then evaluates the index expression
+                 and updates the store with the evaluated expr and evaluates the rest of the xs and index exprs
+                 in the env block .
+             *)
               | IndexAssign (xs, e, e') ->
                 (match Env_block.eb_lookup envs xs with
                   | Some Value.V_Loc loc_base -> 
