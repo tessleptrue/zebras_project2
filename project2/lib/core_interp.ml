@@ -332,14 +332,20 @@ let exec (p : Ast.Prog.t) : unit =
         binop op v v'
       | Ast.Expr.Call (f, args) -> 
         let evaled_args = List.map (eval fr) args in
+        (* special case for printf *)
           (match f with
           | "fprintf" ->
+            (*Ignore first argument of fprintf (stdout), 
+            call printf and return Value.V_None if arguments are correct, 
+              otherwise raise typeerror*)
                 (match evaled_args with
                     | _ :: Value.V_Str fmt :: rest -> 
                         let () = Io.do_fprintf fmt rest in
                         Value.V_None
                     | _ -> raise (TypeError "fprintf: bad arguments"))
-          | _ ->
+          | _ -> (* If funtion is is f_list, evaulate the function after assigning parameters
+                    to arguments, if it returns a V_frame retirn the value,
+                      otherwise raise NoReturn error*)
             let (params, body) = 
               match List.assoc_opt f f_list with 
               | Some v -> v
@@ -349,10 +355,13 @@ let exec (p : Ast.Prog.t) : unit =
                 | Frame.V_frame v -> v
                 | Frame.E_frame _ -> raise (NoReturn f) ))
       |Ast.Expr.Str s -> Value.V_Str s))
+    (*Evaluates a statement and outputs frame with evaluated statement *)
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
       |Frame.V_frame _ -> raise (TypeError "fr")
       |Frame.E_frame envs -> (match stm with
+      (* Declare a list of vars by recursively 
+      using def_var on the environment block and evaluating e if necessary*)
         | VarDec (xs) -> 
           let rec dec_list (fr' : Frame.t) (xs : (Ast.Id.t * Ast.Expr.t option) list) : Frame.t = 
             match (fr', xs) with 
@@ -370,12 +379,13 @@ let exec (p : Ast.Prog.t) : unit =
         | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
         | Block stms -> (match (eval_stms (Frame.E_frame(Env_block.eb_add_empty envs)) stms) with
                         |Frame.V_frame v -> Frame.V_frame(v) 
-                        |Frame.E_frame es -> Frame.E_frame(Env_block.eb_pop es))
+                        |Frame.E_frame es -> Frame.E_frame(Env_block.eb_pop es)) (* removes environment after all stms are evaluated *)
         | IfElse (e, stm1, stm2) -> (match (eval fr e) with 
                                     |Value.V_Bool x -> (match x with 
                                               |false -> eval_stm fr stm2 
                                               |true -> eval_stm fr stm1 )
                                     |_-> raise (TypeError "not bool") )
+        (* Eval stm until e is false or V_frame is returned*)
         | While (e, stm) -> (match (eval fr e) with 
                                 | Value.V_Bool true -> 
                                     (match eval_stm fr stm with
@@ -389,6 +399,7 @@ let exec (p : Ast.Prog.t) : unit =
 
       ))) 
       and 
+      (*Recursively evaluate statements *)
       eval_stms (fr: Frame.t) (stms : Ast.Stm.t list) : Frame.t =
         (match stms with
         |[] -> fr
