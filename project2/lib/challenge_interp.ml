@@ -328,7 +328,6 @@ let rec alloc_space (store: Store.t) (n : int) : unit =
 let exec (p : Ast.Prog.t) : unit =
   match p with
   | Pgm fundefs -> 
-    let store_main = Store.store_make 100 in 
     let f_list = def_funks fundefs in
     let store_main = Store.store_make 100 in
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
@@ -347,16 +346,7 @@ let exec (p : Ast.Prog.t) : unit =
       (* |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
                             | Some v -> v
                             | None -> raise (UnboundVariable x) ) *)
-      | Ast.Expr.Index (xs, e) -> 
-          (match Env_block.eb_lookup envs xs with
-          | Some (Value.V_Loc loc_base) -> 
-          (match eval fr e with
-            |Value.V_Int i -> (match i<0 with
-                                |true -> raise (SegmentationError i)
-                                |false -> Store.store_lookup store_main (loc_base + 1 + i) )
-            |_-> raise (TypeError "idk what to call type error"))
-          | None -> raise (SegmentationError 0)
-          | _ -> failwith "this is when there is a value found that isn't a loc... bad" )
+    
       | Ast.Expr.Num n -> Value.V_Int n
       | Ast.Expr.Bool b -> Value.V_Bool b
       | Ast.Expr.Unop (op, e) ->
@@ -440,7 +430,7 @@ let exec (p : Ast.Prog.t) : unit =
                     (match eval fr e with 
                     | Value.V_Int i -> 
                      let _ =  Store.store_update store_main (loc_base + i) (eval fr e') in 
-                      Frame.E_Frame envs 
+                      Frame.E_frame envs 
                     | _ -> raise (TypeError "non-int entry"))           
                   | _ -> raise (TypeError "not an array"))     
               | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
