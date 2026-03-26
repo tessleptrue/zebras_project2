@@ -240,12 +240,6 @@ module Frame = struct
   |V_frame of Value.t
 
   let fr_empty = E_frame [Env.empty]
-
-  
-
-
-
-  (* Cases based on what the frame is, potentially where we implement STM stuff*)
 end
 
 let unop (op : Ast.Expr.unop) (v : Value.t) : Value.t =
@@ -274,31 +268,11 @@ let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
   |_ -> raise (TypeError "Unsupported expression")
 
 
-
-(* let rec check_duplicate_params (params : Ast.Id.t list) : unit =
-  match params with
-  | [] -> ()
-  | p :: rest ->
-    if List.mem p rest then raise (MultipleDeclaration p)
-    else check_duplicate_params rest
-
-let rec def_funks (funks : Ast.Prog.fundef list)
-    : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list =
-  match funks with
-  | [] -> []
-  | (name, params, body) :: xs ->
-    check_duplicate_params params;   (* <-- ADD THIS CHECK *)
-    (name, (params, body)) :: def_funks xs *)
-
-
 let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list = 
     match funks with
           |[] -> []
+          |("main", params, body)::_ -> [("main", (params, body))]
           |(name, params, body)::xs -> (name, (params, body)) :: def_funks xs 
-
-
-(* exec p:  Execute the program `p`.
- *)
 
 let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) : Frame.t = 
     match fr with
@@ -310,13 +284,10 @@ let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) :
           | (_, []) -> raise (TypeError "too few args")
           | (y::ys, b::bs) -> (arg_match (Frame.E_frame(Env_block.def_var envs y b)) ys bs ))
 
-
-
 let exec (p : Ast.Prog.t) : unit =
   match p with
   |Pgm fundefs -> 
     let f_list = def_funks fundefs in
-
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
     (match fr with
     |Frame.V_frame _ -> failwith "unimplemented"
@@ -351,6 +322,14 @@ let exec (p : Ast.Prog.t) : unit =
                         let () = Io.do_fprintf fmt rest in
                         Value.V_None
                     | _ -> raise (TypeError "fprintf: bad arguments"))
+          |"main" -> let (params, body) = 
+              match List.assoc_opt f f_list with 
+              | Some v -> v
+              | None -> raise (UndefinedFunction f)
+            in
+              (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
+                | Frame.V_frame v -> v
+                | Frame.E_frame _ -> Value.V_None)
           | _ ->
             let (params, body) = 
               match List.assoc_opt f f_list with 
@@ -359,22 +338,7 @@ let exec (p : Ast.Prog.t) : unit =
             in
               (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
                 | Frame.V_frame v -> v
-                | Frame.E_frame _ -> raise (NoReturn "Function does not return"))) (* IDK WHAT IS RIGHT *)
-      (* | Ast.Expr.Call (f, args) -> 
-        (let (params, body) = (match List.assoc_opt f f_list with 
-                                |Some v -> v
-                                |None -> raise (UndefinedFunction f))
-        in
-          let rec val_list (args: Ast.Expr.t list) : Value.t list = 
-            (*Evaluate each argument expresssion*)
-            (match args with 
-              |[] -> []
-              |b::bs -> (eval fr b) :: (val_list bs))
-            in
-            (*Bind each evaluated argument expression to function parameters and evaluate the function *)
-            (match eval_stms (arg_match Frame.fr_empty params (val_list args)) body with
-              |Frame.V_frame v-> v
-              |Frame.E_frame _ -> raise (NoReturn f)) ) *)
+                | Frame.E_frame _ -> raise (NoReturn f) ))
       |Ast.Expr.Str s -> Value.V_Str s))
     and eval_stm (fr : Frame.t) (stm : Ast.Stm.t) : Frame.t =
       (match fr with 
