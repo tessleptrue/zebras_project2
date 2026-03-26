@@ -324,7 +324,7 @@ let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) :
           | (y::ys, b::bs) -> (arg_match (Frame.E_frame(Env_block.def_var envs y b)) ys bs ))
 (* exec p:  Execute the program `p`.
  *)
-let exec (_ : Ast.Prog.t) : unit =
+let exec (p : Ast.Prog.t) : unit =
   match p with
   | Pgm fundefs -> 
     let store_main = Store.store_make 100 in 
@@ -412,7 +412,7 @@ let exec (_ : Ast.Prog.t) : unit =
                     (match eval fr e with 
                     | Value.V_Int i -> 
                      let _ =  Store.store_update store_main (loc_base + i) (eval fr e') in 
-                      Frame.E_Frame envs 
+                      Frame.E_frame envs 
                     | _ -> raise (TypeError "non-int entry"))           
                   | _ -> raise (TypeError "not an array"))     
               | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
@@ -433,9 +433,8 @@ let exec (_ : Ast.Prog.t) : unit =
                                       | _ -> raise (TypeError "not bool"))
               | Return (e_opt) -> (match e_opt with
                                     |None -> Frame.V_frame(Value.V_None)
-                                    |Some e -> Frame.V_frame(eval fr e)
-
-      ))) 
+                                    |Some e -> Frame.V_frame(eval fr e))
+              | _-> failwith "unimplemented")) 
           and 
           eval_stms (fr: Frame.t) (stms : Ast.Stm.t list) : Frame.t =
             (match stms with
