@@ -354,14 +354,12 @@ let exec (_ : Ast.Prog.t) : unit =
         let v = eval fr e in
         let v' = eval fr e' in
         binop op v v'
-      | Ast.Expr.Index (xs, e) ->  
-        (match Env_block.eb_lookup envs xs with
-        | Some (Value.V_Loc loc_base) -> 
-        (match eval fr e with
-          |Value.V_Int i -> (match i<0 with
-            |true -> raise (SegmentationError i)
-            |false -> Store.store_lookup store_main (loc_base + 1 + i) )
-          |_-> raise (TypeError "idk what to call type error"))
+      |Ast.Expr.Index (xs, e) -> 
+          (match Env_block.eb_lookup envs xs with
+          | Some (Value.V_Loc loc_base) -> 
+          (match eval fr e with
+            |Value.V_Int i -> Store.store_lookup store_main (loc_base + 1 + i)
+            |_-> raise (TypeError "idk what to call type error"))
           | None -> failwith "this is when there's no loc found"
           | _ -> failwith "this is when there is a value found that isn't a loc... bad" )
       | Ast.Expr.Call (f, args) -> 
