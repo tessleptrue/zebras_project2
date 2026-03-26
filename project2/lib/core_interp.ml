@@ -331,24 +331,14 @@ let exec (p : Ast.Prog.t) : unit =
         let v' = eval fr e' in
         binop op v v'
       | Ast.Expr.Call (f, args) -> 
-        (* make new list of evaluated args *)
         let evaled_args = List.map (eval fr) args in
           (match f with
-          (* fprintf and main have special cases *)
           | "fprintf" ->
                 (match evaled_args with
                     | _ :: Value.V_Str fmt :: rest -> 
                         let () = Io.do_fprintf fmt rest in
                         Value.V_None
                     | _ -> raise (TypeError "fprintf: bad arguments"))
-          |"main" -> let (params, body) = 
-              match List.assoc_opt f f_list with 
-              | Some v -> v
-              | None -> raise (UndefinedFunction f)
-            in
-              (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
-                | Frame.V_frame v -> v
-                | Frame.E_frame _ -> Value.V_None)
           | _ ->
             let (params, body) = 
               match List.assoc_opt f f_list with 
