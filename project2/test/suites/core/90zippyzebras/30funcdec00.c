@@ -20,5 +20,6 @@ int g() {
 void main() {
     int a = f();
     int b = g();
-    fprintf("%d", a);
+    fprintf(stdout, "%d", a);
+    return ;
 }
