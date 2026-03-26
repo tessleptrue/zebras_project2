@@ -251,34 +251,27 @@ module Store = struct
 
   type t = Value.t Array.t * int ref
 
-  
   let store_make (size : int) : t =
     (Array.make size Value.V_Undefined, ref 0)
 
   let store_lookup (store : t) (location : int) : Value.t =
-    let (arr, _) = store in
-    if location < 0 || location >= Array.length arr then
-      raise (SegmentationError location)
-    else
-      Array.get arr location
+    match location < 0 with
+    | true -> raise (SegmentationError location)
+    | false -> let (arr, _) = store in Array.get arr location
 
   let store_update (store : t) (location : int) (v : Value.t) : unit =
-    let (arr, _) = store in
-    if location < 0 || location >= Array.length arr then
-      raise (SegmentationError location)
-    else
-      Array.set arr location v
+    match location < 0 with
+    | true -> raise (SegmentationError location)
+    | false -> let (arr, _) = store in Array.set arr location v
 
   let store_new_loc(store : t) : int =
-    let (arr, next) = store in
+  let (arr, next) = store in
     let loc = !next in
-    if loc >= Array.length arr then
-      raise OutOfMemoryError
-    else
-      let _ = Array.set arr loc Value.V_Undefined in
-      let _ = next := loc + 1 in
-      loc
-
+      match loc >= Array.length arr with
+        |true -> raise OutOfMemoryError
+        |false -> let _ = Array.set arr loc Value.V_Undefined in
+                  let _ = next := loc + 1 in
+                    loc 
 end 
 
 let unop (op : Ast.Expr.unop) (v : Value.t) : Value.t =
