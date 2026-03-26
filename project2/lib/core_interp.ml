@@ -274,6 +274,23 @@ let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
   |_ -> raise (TypeError "Unsupported expression")
 
 
+
+(* let rec check_duplicate_params (params : Ast.Id.t list) : unit =
+  match params with
+  | [] -> ()
+  | p :: rest ->
+    if List.mem p rest then raise (MultipleDeclaration p)
+    else check_duplicate_params rest
+
+let rec def_funks (funks : Ast.Prog.fundef list)
+    : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list =
+  match funks with
+  | [] -> []
+  | (name, params, body) :: xs ->
+    check_duplicate_params params;   (* <-- ADD THIS CHECK *)
+    (name, (params, body)) :: def_funks xs *)
+
+
 let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list = 
     match funks with
           |[] -> []
@@ -305,13 +322,14 @@ let exec (p : Ast.Prog.t) : unit =
     |Frame.V_frame _ -> failwith "unimplemented"
     |Frame.E_frame envs -> 
       (match e with
-      |Ast.Expr.Var x -> 
-            (match x with
-            | "stdout" | "stdin" -> Value.V_None  
-            | _ ->
-                match (Env_block.eb_lookup envs x) with 
-                | Some v -> v
-                | None -> raise (UnboundVariable x))
+      | Ast.Expr.Var x ->
+        (match x with
+        | "stdout" | "stdin" -> Value.V_None
+        | _ ->
+            match (Env_block.eb_lookup envs x) with
+            | Some Value.V_Undefined -> raise (UnboundVariable x)
+            | Some v -> v
+            | None -> raise (UnboundVariable x))
       (* |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
                             | Some v -> v
                             | None -> raise (UnboundVariable x) ) *)
@@ -341,7 +359,7 @@ let exec (p : Ast.Prog.t) : unit =
             in
               (match eval_stms (arg_match Frame.fr_empty params evaled_args) body with
                 | Frame.V_frame v -> v
-                | Frame.E_frame _ -> raise (NoReturn f))) (* IDK WHAT IS RIGHT *)
+                | Frame.E_frame _ -> raise (NoReturn "Function does not return"))) (* IDK WHAT IS RIGHT *)
       (* | Ast.Expr.Call (f, args) -> 
         (let (params, body) = (match List.assoc_opt f f_list with 
                                 |Some v -> v
