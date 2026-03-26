@@ -172,14 +172,15 @@ end
  *)
 module Env = struct
 
-  (* Define type var(s), funk(s) so environment contains functions and variables seperately *)
+  (* First we define what a var is, then what a var list is *)
   type var = (Ast.Id.t * Value.t) 
   type vars = var list
-  (* Function name, arguments, expression *)
+
+  (* our environment type is a var list *)
+  type t = vars
 
   (*  empty = ρ, where dom ρ = ∅.
    *)
-  type t = vars
   let empty : t = []
   [@@deriving show]
 
@@ -192,7 +193,8 @@ module Env = struct
    *)
   let update (rho : t) (x : Ast.Id.t) (v : Value.t) : t =
     (x, v) :: List.remove_assoc x rho
-
+  
+  (* def_var is used when we are adding a new variable to our environment *)
   let def_var (rho : t)(x: Ast.Id.t) (v : Value.t) : t =
     match lookup rho x with
       |None -> (x, v) :: rho
@@ -202,11 +204,15 @@ module Env = struct
 end
 
 module Env_block = struct 
+  (* an environment block is a list of environments *)
   type t = Env.t list
 
+  (* this adds an empty environment to the "top" of the stack *)
   let eb_add_empty (block : t) : t =
     Env.empty :: block
 
+  (* this finds a variable in an environment block by searching through the stack
+    from top to bottom and returns a value if it finds one *)
   let rec eb_lookup (block : t) (x: Ast.Id.t) : Value.t option = 
     match block with
       |[] -> None
@@ -214,7 +220,7 @@ module Env_block = struct
         |None ->  eb_lookup ys x
         |Some v -> Some v
 
-
+  (* this updates a variable in an environment block *)
   let rec eb_update (block : t)(x : Ast.Id.t)(v : Value.t) : t =
     match block with
     |[] -> raise (UnboundVariable x)
@@ -222,11 +228,13 @@ module Env_block = struct
       |None -> y :: eb_update ys x v
       |Some _ -> (Env.update y x v) :: ys
 
+  (* this pops the top environment off the stack *)
   let eb_pop (block : t) : t = 
     match block with
-    |[] -> [] (*raise fail?*)
+    |[] -> failwith "no more environments to pop"
     |_::ys -> ys
-
+  
+  (* defines a new variable in the top environment *)
   let def_var (block : t)(x: Ast.Id.t) (v : Value.t) : t =
     match block with 
     |[] -> []
@@ -235,19 +243,23 @@ module Env_block = struct
 end
 
 module Frame = struct
+  (* a frame can be either an environment block or a value frame *)
   type t = 
   |E_frame of Env_block.t
   |V_frame of Value.t
-
+  (* an empty frame (the frame we start with) is an environment block with only one
+    environment, that being the empty environment *)
   let fr_empty = E_frame [Env.empty]
 end
 
+(* unary operations *)
 let unop (op : Ast.Expr.unop) (v : Value.t) : Value.t =
   match (op, v) with
   |(Ast.Expr.Not, Value.V_Bool n) -> Value.V_Bool (not n)
   |(Ast.Expr.Neg, Value.V_Int n) -> Value.V_Int (-n)
   |_  -> raise (TypeError "Invalid operand for unary operator")
 
+(* binary operations *)
 let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
   match (op, v, v') with
   | (Ast.Expr.Plus, Value.V_Int n, Value.V_Int n') -> Value.V_Int (n + n')
@@ -267,16 +279,19 @@ let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
   | (Ast.Expr.Ge, Value.V_Int n, Value.V_Int n') -> Value.V_Bool (n >= n')
   |_ -> raise (TypeError "Unsupported expression")
 
-
+(* takes a list of function definitions and repackages them so that the parameters
+  and body can be accessed using the function name *)
 let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list = 
     match funks with
           |[] -> []
           |("main", params, body)::_ -> [("main", (params, body))]
           |(name, params, body)::xs -> (name, (params, body)) :: def_funks xs 
 
+(* takes the frame, parameters, and values for a function and assigns each value to
+  each parameter so that the function body can be evaluated *)
 let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) : Frame.t = 
     match fr with
-      | Frame.V_frame v -> Frame.V_frame v (* is this the right behavior? *)
+      | Frame.V_frame v -> Frame.V_frame v 
       | Frame.E_frame envs ->
         (match (params, vals) with
           | ([], []) -> fr
@@ -284,26 +299,28 @@ let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) :
           | (_, []) -> raise (TypeError "too few args")
           | (y::ys, b::bs) -> (arg_match (Frame.E_frame(Env_block.def_var envs y b)) ys bs ))
 
+(* exec function *)
 let exec (p : Ast.Prog.t) : unit =
   match p with
   |Pgm fundefs -> 
+    (* this is where function definitions are stored *)
     let f_list = def_funks fundefs in
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
     (match fr with
-    |Frame.V_frame _ -> failwith "unimplemented"
+    (* if the frame is already a value, just return that value *)
+    |Frame.V_frame v -> v
+    (* otherwise we will have an environment block envs *)
     |Frame.E_frame envs -> 
       (match e with
       | Ast.Expr.Var x ->
+        (* stdout and stdin have value.V_None, otherwise lookup in envs *)
         (match x with
         | "stdout" | "stdin" -> Value.V_None
         | _ ->
             match (Env_block.eb_lookup envs x) with
-            | Some Value.V_Undefined -> raise (UnboundVariable x)
+            | Some Value.V_Undefined -> raise (UnboundVariable x) (* no value assigned, variable was initialized but not assigned *)
             | Some v -> v
-            | None -> raise (UnboundVariable x))
-      (* |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
-                            | Some v -> v
-                            | None -> raise (UnboundVariable x) ) *)
+            | None -> raise (UnboundVariable x) (*no value assigned--this should never occur *))
       | Ast.Expr.Num n -> Value.V_Int n
       | Ast.Expr.Bool b -> Value.V_Bool b
       | Ast.Expr.Unop (op, e) ->
