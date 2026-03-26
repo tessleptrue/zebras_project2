@@ -21,5 +21,5 @@ void main() {
     int a = f();
     int b = g();
     fprintf(stdout, "%d", a);
-    return ;
+    return;
 }

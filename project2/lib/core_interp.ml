@@ -283,9 +283,9 @@ let binop (op : Ast.Expr.binop) (v : Value.t) (v' : Value.t) : Value.t =
   and body can be accessed using the function name *)
 let rec def_funks (funks : Ast.Prog.fundef list) : (Ast.Id.t * (Ast.Id.t list * Ast.Stm.t list)) list = 
     match funks with
-          |[] -> []
-          |("main", params, body)::_ -> [("main", (params, body))]
-          |(name, params, body)::xs -> (name, (params, body)) :: def_funks xs 
+      |[] -> []
+      |("main", params, body)::_ -> [("main", (params, body))]
+      |(name, params, body)::xs -> (name, (params, body)) :: def_funks xs 
 
 (* takes the frame, parameters, and values for a function and assigns each value to
   each parameter so that the function body can be evaluated *)
@@ -336,7 +336,7 @@ let exec (p : Ast.Prog.t) : unit =
           | "fprintf" ->
                 (match evaled_args with
                     | _ :: Value.V_Str fmt :: rest -> 
-                        let () = Io.do_fprintf fmt rest in
+                        let _ = Io.do_fprintf fmt rest in
                         Value.V_None
                     | _ -> raise (TypeError "fprintf: bad arguments"))
           | _ ->
