@@ -317,10 +317,18 @@ let rec arg_match (fr : Frame.t)(params : Ast.Id.t list) (vals : Value.t list) :
           | (y::ys, b::bs) -> (arg_match (Frame.E_frame(Env_block.def_var envs y b)) ys bs ))
 (* exec p:  Execute the program `p`.
  *)
-let exec (_ : Ast.Prog.t) : unit =
+let rec alloc_space (store: Store.t) (n : int) : unit =
+                                  match n with 
+                                  |0 -> ()
+                                  |_ -> ignore (Store.store_new_loc store); 
+                                        alloc_space store (n-1)
+                                       
+
+let exec (p : Ast.Prog.t) : unit =
   match p with
   | Pgm fundefs -> 
     let f_list = def_funks fundefs in
+    let store_main = Store.store_make 100 in
   let rec eval (fr: Frame.t) (e : Ast.Expr.t) : Value.t =
     (match fr with
     |Frame.V_frame _ -> failwith "unimplemented"
@@ -337,6 +345,16 @@ let exec (_ : Ast.Prog.t) : unit =
       (* |Ast.Expr.Var x -> (match (Env_block.eb_lookup envs x) with 
                             | Some v -> v
                             | None -> raise (UnboundVariable x) ) *)
+      | Ast.Expr.Index (xs, e) -> 
+          (match Env_block.eb_lookup envs xs with
+          | Some (Value.V_Loc loc_base) -> 
+          (match eval fr e with
+            |Value.V_Int i -> (match i<0 with
+                                |true -> raise (SegmentationError i)
+                                |false -> Store.store_lookup store_main (loc_base + 1 + i) )
+            |_-> raise (TypeError "idk what to call type error"))
+          | None -> raise (SegmentationError 0)
+          | _ -> failwith "this is when there is a value found that isn't a loc... bad" )
       | Ast.Expr.Num n -> Value.V_Int n
       | Ast.Expr.Bool b -> Value.V_Bool b
       | Ast.Expr.Unop (op, e) ->
@@ -379,16 +397,32 @@ let exec (_ : Ast.Prog.t) : unit =
             |Frame.E_frame envs -> (match stm with
               | VarDec (xs) -> 
                 let rec dec_list (fr' : Frame.t) (xs : (Ast.Id.t * Ast.Expr.t option) list) : Frame.t = 
-                  match (fr', xs) with 
+                  (match (fr', xs) with 
                     | (_, []) -> fr'
                     | (Frame.V_frame _, _) -> fr'
                     | (Frame.E_frame envs', (name, e_opt)::ys) ->
                         (match e_opt with 
                           | None -> dec_list (Frame.E_frame(Env_block.def_var envs' name Value.V_Undefined)) ys 
-                          | Some e -> dec_list (Frame.E_frame(Env_block.def_var envs' name (eval fr' e))) ys)
+                          | Some e -> dec_list (Frame.E_frame(Env_block.def_var envs' name (eval fr' e))) ys))
                 in
                   dec_list fr xs
 
+              | ArrayDec (xs) -> 
+                let rec arr_dec_list (fr' : Frame.t) (xs : (Ast.Id.t * Ast.Expr.t) list) : Frame.t = 
+                  (match (fr', xs) with 
+                    | (_, []) -> fr'
+                    | (Frame.V_frame _, _) -> fr'
+                    | (Frame.E_frame envs', (name, size)::ys) ->
+                        (match eval fr' size with 
+                          |Value.V_Int 0 -> fr' 
+                          |Value.V_Int n -> 
+                                            let base_loc = Store.store_new_loc store_main in
+                                            Store.store_update store_main base_loc (Value.V_Int n) ;
+                                            alloc_space store_main n;
+                                            arr_dec_list (Frame.E_frame (Env_block.def_var envs' name (Value.V_Loc base_loc))) ys                       
+                          |_ -> raise (TypeError "array size must be a positive integer")
+))
+                in arr_dec_list fr xs
               | Fscanf (_, st, x) -> Frame.E_frame(Env_block.eb_update envs x (Io.do_fscanf st))
               | Assign (x, e) -> Frame.E_frame(Env_block.eb_update envs x (eval fr e))
               | Expr e -> let _ = eval fr e in Frame.E_frame envs (* calls eval in case there are prints etc *)
@@ -409,9 +443,9 @@ let exec (_ : Ast.Prog.t) : unit =
                                       | _ -> raise (TypeError "not bool"))
               | Return (e_opt) -> (match e_opt with
                                     |None -> Frame.V_frame(Value.V_None)
-                                    |Some e -> Frame.V_frame(eval fr e)
-
-      ))) 
+                                    |Some e -> Frame.V_frame(eval fr e)        
+      )
+      | _ -> failwith "gabby did it"))
           and 
           eval_stms (fr: Frame.t) (stms : Ast.Stm.t list) : Frame.t =
             (match stms with
