@@ -11,7 +11,7 @@
 
 
 bool f() {
-    if (true) return true ;
+    if (false) return true ;
 }
 
 void main() {
